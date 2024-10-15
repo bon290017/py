@@ -13,15 +13,16 @@ import os
 # 設置支持中文的字體
 def plt_chinese():
     # 使用自定義字體
-    font_path = os.path.join("fonts", "NotoSansCJK-Regular.ttc")  # 相對路徑
+    font_path = os.path.join("fonts", "NotoSansTC-SemiBold.ttf")  # 根據實際字體文件名稱調整
     if os.path.exists(font_path):
-        font_prop = FontProperties(fname=font_path, size=12)
+        font_prop = FontProperties(fname=font_path)
         matplotlib.rcParams['font.family'] = font_prop.get_name()
         matplotlib.rcParams['axes.unicode_minus'] = False  # 確保負號顯示正確
     else:
         # 如果找不到自定義字體，使用系統字體
         matplotlib.rcParams['font.family'] = 'SimHei'  # 或其他系統中存在的中文字體
         matplotlib.rcParams['axes.unicode_minus'] = False  # 確保負號顯示正確
+        st.warning("未找到自定義中文字體，將使用默認字體。")
 
 # 設置應用標題
 st.title("多股票回測系統")
@@ -50,6 +51,9 @@ if start_date > end_date:
 
 # 按鈕觸發回測
 if st.button("開始回測"):
+    # 設置中文字體
+    plt_chinese()
+
     # 定義函數以獲取單個股票的歷史數據
     def fetch_stock_data(symbol, start_date, end_date):
         try:
@@ -116,9 +120,6 @@ if st.button("開始回測"):
             # 計算累積收益
             portfolio_cumulative_returns = (1 + portfolio_returns).cumprod()
             benchmark_cumulative_returns = (1 + benchmark_returns).cumprod()
-
-            # 設置中文字體
-            plt_chinese()
 
             # 繪製累積收益曲線
             fig, ax = plt.subplots(figsize=(14,7))
