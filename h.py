@@ -6,24 +6,22 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
-import matplotlib
 from matplotlib.font_manager import FontProperties
 import os
 
 # 設置支持中文的字體
-def plt_chinese():
-    # 使用自定義字體
-    font_path = os.path.join("fonts", "NotoSansTC-SemiBold.ttf")  # 根據實際字體文件名稱調整
+def get_font_properties():
+    font_path = os.path.join("fonts", "NotoSansTC-SemiBold.ttf")
     if os.path.exists(font_path):
-        matplotlib.rcParams['font.sans-serif'] = ['Noto Sans TC SemiBold']  # 確保名稱與字體文件一致
-        matplotlib.rcParams['font.family'] = 'sans-serif'
-        matplotlib.rcParams['axes.unicode_minus'] = False  # 確保負號顯示正確
+        try:
+            font_prop = FontProperties(fname=font_path)
+            return font_prop
+        except Exception as e:
+            st.warning(f"加載字體時出錯：{e}。將使用默認字體。")
+            return None
     else:
-        # 如果找不到自定義字體，使用系統字體
-        matplotlib.rcParams['font.sans-serif'] = ['SimHei']  # 或其他系統中存在的中文字體
-        matplotlib.rcParams['font.family'] = 'sans-serif'
-        matplotlib.rcParams['axes.unicode_minus'] = False  # 確保負號顯示正確
-        st.warning("未找到自定義中文字體，將使用默認字體。")
+        st.warning("未找到自定義中文字體文件。將使用默認字體。")
+        return None
 
 # 設置應用標題
 st.title("多股票回測系統")
@@ -52,9 +50,9 @@ if start_date > end_date:
 
 # 按鈕觸發回測
 if st.button("開始回測"):
-    # 設置中文字體
-    plt_chinese()
-
+    # 獲取字體屬性
+    font_prop = get_font_properties()
+    
     # 定義函數以獲取單個股票的歷史數據
     def fetch_stock_data(symbol, start_date, end_date):
         try:
@@ -123,11 +121,11 @@ if st.button("開始回測"):
 
             # 繪製累積收益曲線
             fig, ax = plt.subplots(figsize=(14,7))
-            ax.plot(portfolio_cumulative_returns, label='投資組合累積收益')
-            ax.plot(benchmark_cumulative_returns, label=f'{benchmark_input} 累積收益')
-            ax.set_title('投資組合與基準股票累積收益對比', fontsize=16)
-            ax.set_xlabel('日期', fontsize=14)
-            ax.set_ylabel('累積收益', fontsize=14)
+            ax.plot(portfolio_cumulative_returns, label='投資組合累積收益', fontproperties=font_prop)
+            ax.plot(benchmark_cumulative_returns, label=f'{benchmark_input} 累積收益', fontproperties=font_prop)
+            ax.set_title('投資組合與基準股票累積收益對比', fontsize=16, fontproperties=font_prop)
+            ax.set_xlabel('日期', fontsize=14, fontproperties=font_prop)
+            ax.set_ylabel('累積收益', fontsize=14, fontproperties=font_prop)
             ax.legend(prop={'size': 12})
             ax.grid(True)
             st.pyplot(fig)
