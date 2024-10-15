@@ -113,9 +113,13 @@ if st.button("開始回測"):
             portfolio_returns = portfolio_returns.loc[benchmark_returns.index]
             benchmark_returns = benchmark_returns.loc[portfolio_returns.index]
 
+            # 處理缺失值
+            portfolio_returns = portfolio_returns.fillna(0)
+            benchmark_returns = benchmark_returns.fillna(0)
+
             # 計算累積收益
-            portfolio_cumulative_returns = (1 + portfolio_returns).cumprod()
-            benchmark_cumulative_returns = (1 + benchmark_returns).cumprod()
+            portfolio_cumulative_returns = (1 + portfolio_returns).cumprod() - 1
+            benchmark_cumulative_returns = (1 + benchmark_returns).cumprod() - 1
 
             # 準備 Plotly 圖表
             fig = go.Figure()
@@ -128,7 +132,7 @@ if st.button("開始回測"):
                 name='投資組合累積收益',
                 hovertemplate=
                     '日期: %{x}<br>' +
-                    '累積收益: %{y:.2f}%<extra></extra>'
+                    '累積收益: %{y:.2%}<extra></extra>'
             ))
 
             # 添加基準股票累積收益曲線
@@ -139,7 +143,7 @@ if st.button("開始回測"):
                 name=f'{benchmark_input} 累積收益',
                 hovertemplate=
                     '日期: %{x}<br>' +
-                    '累積收益: %{y:.2f}%<extra></extra>'
+                    '累積收益: %{y:.2%}<extra></extra>'
             ))
 
             # 設置圖表布局
@@ -151,23 +155,48 @@ if st.button("開始回測"):
                 template='plotly_white'
             )
 
-            # 在圖表中顯示百分比
+            # 設置 Y 軸為百分比格式
             fig.update_yaxes(tickformat=".2%")
 
             # 顯示 Plotly 圖表
             st.plotly_chart(fig, use_container_width=True)
 
+            # 繪製基準股票的 K 線圖
+            fig_candlestick = go.Figure(data=[go.Candlestick(
+                x=benchmark_data.index,
+                open=benchmark_data['Open'],
+                high=benchmark_data['High'],
+                low=benchmark_data['Low'],
+                close=benchmark_data['Close'],
+                name=f'{benchmark_input} K 線',
+                hovertemplate=
+                    '日期: %{x}<br>' +
+                    '開盤價: %{open}<br>' +
+                    '最高價: %{high}<br>' +
+                    '最低價: %{low}<br>' +
+                    '收盤價: %{close}<extra></extra>'
+            )])
+
+            fig_candlestick.update_layout(
+                title=f'{benchmark_input} K 線圖',
+                xaxis_title='日期',
+                yaxis_title='價格',
+                template='plotly_white'
+            )
+
+            st.plotly_chart(fig_candlestick, use_container_width=True)
+
             # 計算總收益
-            total_portfolio_return = portfolio_cumulative_returns.iloc[-1] - 1
-            total_benchmark_return = benchmark_cumulative_returns.iloc[-1] - 1
+            total_portfolio_return = portfolio_cumulative_returns.iloc[-1]
+            total_benchmark_return = benchmark_cumulative_returns.iloc[-1]
 
             # 顯示回測結果
             st.write(f"**投資組合總收益:** {total_portfolio_return * 100:.2f}%")
             st.write(f"**{benchmark_input} 總收益:** {total_benchmark_return * 100:.2f}%")
 
             # 計算每月獲利百分比
-            portfolio_monthly = portfolio_cumulative_returns.resample('ME').last().pct_change().dropna() * 100
-            benchmark_monthly = benchmark_cumulative_returns.resample('ME').last().pct_change().dropna() * 100
+            portfolio_monthly = portfolio_cumulative_returns.resample('M').last().pct_change().dropna() * 100
+            benchmark_monthly = benchmark_cumulative_returns.resample('M').last().pct_change().dropna() * 100
 
             # 合併數據
             monthly_returns_df = pd.DataFrame({
