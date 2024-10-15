@@ -8,17 +8,20 @@ import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 import matplotlib
 from matplotlib.font_manager import FontProperties
+import os
 
 # 設置支持中文的字體
-# 方法一：使用系統已安裝的字體
-matplotlib.rcParams['font.family'] = 'SimHei'  # 或 'Noto Sans CJK'
-matplotlib.rcParams['axes.unicode_minus'] = False  # 確保負號顯示正確
-
-# 方法二：使用自定義字體（若方法一無法顯示中文）
-# font_path = "fonts/NotoSansCJK-Regular.ttc"  # 相對路徑
-# font_prop = FontProperties(fname=font_path, size=12)
-# matplotlib.rcParams['font.family'] = font_prop.get_name()
-# matplotlib.rcParams['axes.unicode_minus'] = False  # 確保負號顯示正確
+def plt_chinese():
+    # 使用自定義字體
+    font_path = os.path.join("fonts", "NotoSansCJK-Regular.ttc")  # 相對路徑
+    if os.path.exists(font_path):
+        font_prop = FontProperties(fname=font_path, size=12)
+        matplotlib.rcParams['font.family'] = font_prop.get_name()
+        matplotlib.rcParams['axes.unicode_minus'] = False  # 確保負號顯示正確
+    else:
+        # 如果找不到自定義字體，使用系統字體
+        matplotlib.rcParams['font.family'] = 'SimHei'  # 或其他系統中存在的中文字體
+        matplotlib.rcParams['axes.unicode_minus'] = False  # 確保負號顯示正確
 
 # 設置應用標題
 st.title("多股票回測系統")
@@ -33,7 +36,7 @@ st.write("""
 symbols_input = st.text_input("請輸入多支台灣股市代號（用逗號分隔）:", "2330,2317,2412")
 benchmark_input = st.text_input("請輸入用於對比的台灣股市代號:", "0050")
 
-# 新增日期選擇功能
+# 新增日期選擇功能，標籤使用中文
 st.write("### 選擇回測的日期範圍")
 default_end_date = datetime.today()
 default_start_date = default_end_date - timedelta(days=730)  # 預設過去兩年
@@ -114,6 +117,9 @@ if st.button("開始回測"):
             portfolio_cumulative_returns = (1 + portfolio_returns).cumprod()
             benchmark_cumulative_returns = (1 + benchmark_returns).cumprod()
 
+            # 設置中文字體
+            plt_chinese()
+
             # 繪製累積收益曲線
             fig, ax = plt.subplots(figsize=(14,7))
             ax.plot(portfolio_cumulative_returns, label='投資組合累積收益')
@@ -150,6 +156,5 @@ if st.button("開始回測"):
                 '投資組合月獲利%': "{:.2f}",
                 f'{benchmark_input} 月獲利%': "{:.2f}"
             }))
-
         else:
             st.error(f"無法取得基準股票 {benchmark_input} 的資料。請檢查股票代號是否正確或該股票是否已退市。")
