@@ -8,7 +8,7 @@ Original file is located at
 """
 
 # 安装所需的库
-!pip install yfinance matplotlib
+pip install yfinance matplotlib
 
 import yfinance as yf
 import pandas as pd
