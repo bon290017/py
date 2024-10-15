@@ -121,12 +121,20 @@ if st.button("開始回測"):
 
             # 繪製累積收益曲線
             fig, ax = plt.subplots(figsize=(14,7))
-            ax.plot(portfolio_cumulative_returns, label='投資組合累積收益', fontproperties=font_prop)
-            ax.plot(benchmark_cumulative_returns, label=f'{benchmark_input} 累積收益', fontproperties=font_prop)
+            ax.plot(portfolio_cumulative_returns, label='投資組合累積收益')  # 移除 fontproperties
+            ax.plot(benchmark_cumulative_returns, label=f'{benchmark_input} 累積收益')  # 移除 fontproperties
+
+            # 設置標題和軸標籤，並應用字體屬性
             ax.set_title('投資組合與基準股票累積收益對比', fontsize=16, fontproperties=font_prop)
             ax.set_xlabel('日期', fontsize=14, fontproperties=font_prop)
             ax.set_ylabel('累積收益', fontsize=14, fontproperties=font_prop)
-            ax.legend(prop={'size': 12})
+
+            # 設置圖例，並應用字體屬性
+            if font_prop:
+                legend = ax.legend(prop={'size': 12, 'family': font_prop.get_name()})
+            else:
+                legend = ax.legend(prop={'size': 12})
+
             ax.grid(True)
             st.pyplot(fig)
 
