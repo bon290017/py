@@ -7,15 +7,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 import matplotlib
-from matplotlib.font_manager import FontProperties
 
-# 設置支持中文的字體（以微軟正黑體為例，請根據您的環境調整）
-# 確保系統中安裝了該字體
-# 您也可以使用其他支持中文的字體，如SimHei、Arial Unicode MS等
-font_path = "C:/Windows/Fonts/msjh.ttc"  # Windows 系統的微軟正黑體路徑
-# 如果您在其他操作系統上運行，請更改為相應的中文字體路徑
-font_prop = FontProperties(fname=font_path, size=12)
-matplotlib.rcParams['font.family'] = font_prop.get_name()
+# 設置支持中文的字體
+# 對於 Linux 系統，通常可以使用 'SimHei' 或 'Noto Sans CJK'
+matplotlib.rcParams['font.family'] = 'SimHei'
 matplotlib.rcParams['axes.unicode_minus'] = False  # 確保負號顯示正確
 
 # 設置應用標題
@@ -116,10 +111,10 @@ if st.button("開始回測"):
             fig, ax = plt.subplots(figsize=(14,7))
             ax.plot(portfolio_cumulative_returns, label='投資組合累積收益')
             ax.plot(benchmark_cumulative_returns, label=f'{benchmark_input} 累積收益')
-            ax.set_title('投資組合與基準股票累積收益對比', fontproperties=font_prop)
-            ax.set_xlabel('日期', fontproperties=font_prop)
-            ax.set_ylabel('累積收益', fontproperties=font_prop)
-            ax.legend(prop=font_prop)
+            ax.set_title('投資組合與基準股票累積收益對比', fontsize=16)
+            ax.set_xlabel('日期', fontsize=14)
+            ax.set_ylabel('累積收益', fontsize=14)
+            ax.legend(prop={'size': 12})
             ax.grid(True)
             st.pyplot(fig)
 
