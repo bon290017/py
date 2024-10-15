@@ -15,12 +15,13 @@ def plt_chinese():
     # 使用自定義字體
     font_path = os.path.join("fonts", "NotoSansTC-SemiBold.ttf")  # 根據實際字體文件名稱調整
     if os.path.exists(font_path):
-        font_prop = FontProperties(fname=font_path)
-        matplotlib.rcParams['font.family'] = font_prop.get_name()
+        matplotlib.rcParams['font.sans-serif'] = ['Noto Sans TC SemiBold']  # 確保名稱與字體文件一致
+        matplotlib.rcParams['font.family'] = 'sans-serif'
         matplotlib.rcParams['axes.unicode_minus'] = False  # 確保負號顯示正確
     else:
         # 如果找不到自定義字體，使用系統字體
-        matplotlib.rcParams['font.family'] = 'SimHei'  # 或其他系統中存在的中文字體
+        matplotlib.rcParams['font.sans-serif'] = ['SimHei']  # 或其他系統中存在的中文字體
+        matplotlib.rcParams['font.family'] = 'sans-serif'
         matplotlib.rcParams['axes.unicode_minus'] = False  # 確保負號顯示正確
         st.warning("未找到自定義中文字體，將使用默認字體。")
 
@@ -97,8 +98,7 @@ if st.button("開始回測"):
         pivot_close = portfolio_data.pivot(index='Date', columns='Symbol', values='Close')
 
         # 處理缺失值（如有）
-        pivot_close.fillna(method='ffill', inplace=True)
-        pivot_close.dropna(inplace=True)
+        pivot_close = pivot_close.ffill().dropna()
 
         # 計算每日收益率
         returns = pivot_close.pct_change()
@@ -133,16 +133,16 @@ if st.button("開始回測"):
             st.pyplot(fig)
 
             # 計算總收益
-            total_portfolio_return = portfolio_cumulative_returns[-1] - 1
-            total_benchmark_return = benchmark_cumulative_returns[-1] - 1
+            total_portfolio_return = portfolio_cumulative_returns.iloc[-1] - 1
+            total_benchmark_return = benchmark_cumulative_returns.iloc[-1] - 1
 
             # 顯示回測結果
             st.write(f"**投資組合總收益:** {total_portfolio_return * 100:.2f}%")
             st.write(f"**{benchmark_input} 總收益:** {total_benchmark_return * 100:.2f}%")
 
             # 計算每月獲利百分比
-            portfolio_monthly = portfolio_cumulative_returns.resample('M').last().pct_change().dropna() * 100
-            benchmark_monthly = benchmark_cumulative_returns.resample('M').last().pct_change().dropna() * 100
+            portfolio_monthly = portfolio_cumulative_returns.resample('ME').last().pct_change().dropna() * 100
+            benchmark_monthly = benchmark_cumulative_returns.resample('ME').last().pct_change().dropna() * 100
 
             # 合併數據
             monthly_returns_df = pd.DataFrame({
