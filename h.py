@@ -7,11 +7,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 import matplotlib
+from matplotlib.font_manager import FontProperties
 
 # 設置支持中文的字體
-# 對於 Linux 系統，通常可以使用 'SimHei' 或 'Noto Sans CJK'
-matplotlib.rcParams['font.family'] = 'SimHei'
+# 方法一：使用系統已安裝的字體
+matplotlib.rcParams['font.family'] = 'SimHei'  # 或 'Noto Sans CJK'
 matplotlib.rcParams['axes.unicode_minus'] = False  # 確保負號顯示正確
+
+# 方法二：使用自定義字體（若方法一無法顯示中文）
+# font_path = "fonts/NotoSansCJK-Regular.ttc"  # 相對路徑
+# font_prop = FontProperties(fname=font_path, size=12)
+# matplotlib.rcParams['font.family'] = font_prop.get_name()
+# matplotlib.rcParams['axes.unicode_minus'] = False  # 確保負號顯示正確
 
 # 設置應用標題
 st.title("多股票回測系統")
@@ -126,20 +133,23 @@ if st.button("開始回測"):
             st.write(f"**投資組合總收益:** {total_portfolio_return * 100:.2f}%")
             st.write(f"**{benchmark_input} 總收益:** {total_benchmark_return * 100:.2f}%")
 
-            # 顯示累積收益數據表
-            cumulative_returns_df = pd.DataFrame({
-                '日期': portfolio_cumulative_returns.index,
-                '投資組合累積收益': portfolio_cumulative_returns.values,
-                f'{benchmark_input} 累積收益': benchmark_cumulative_returns.values
+            # 計算每月獲利百分比
+            portfolio_monthly = portfolio_cumulative_returns.resample('M').last().pct_change().dropna() * 100
+            benchmark_monthly = benchmark_cumulative_returns.resample('M').last().pct_change().dropna() * 100
+
+            # 合併數據
+            monthly_returns_df = pd.DataFrame({
+                '日期': portfolio_monthly.index.strftime('%Y-%m'),
+                '投資組合月獲利%': portfolio_monthly.values,
+                f'{benchmark_input} 月獲利%': benchmark_monthly.values
             })
 
-            # 格式化日期顯示
-            cumulative_returns_df['日期'] = cumulative_returns_df['日期'].dt.strftime('%Y-%m-%d')
-
-            st.write("### 累積收益數據表")
-            st.dataframe(cumulative_returns_df.style.format({
-                '投資組合累積收益': "{:.2f}",
-                f'{benchmark_input} 累積收益': "{:.2f}"
+            # 顯示每月獲利數據表
+            st.write("### 每月獲利百分比比較")
+            st.dataframe(monthly_returns_df.style.format({
+                '投資組合月獲利%': "{:.2f}",
+                f'{benchmark_input} 月獲利%': "{:.2f}"
             }))
+
         else:
             st.error(f"無法取得基準股票 {benchmark_input} 的資料。請檢查股票代號是否正確或該股票是否已退市。")
