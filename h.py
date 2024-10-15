@@ -1,15 +1,13 @@
-# 保存為 app.py
-
 import streamlit as st
 import yfinance as yf
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+import plotly.graph_objs as go
 from datetime import datetime, timedelta
 from matplotlib.font_manager import FontProperties
 import os
 
-# 設置支持中文的字體
+# 設置支持中文的字體（如果需要在其他圖表中使用）
 def get_font_properties(font_size=12):
     font_path = os.path.join("fonts", "NotoSansTC-SemiBold.ttf")
     if os.path.exists(font_path):
@@ -50,10 +48,8 @@ if start_date > end_date:
 
 # 按鈕觸發回測
 if st.button("開始回測"):
-    # 獲取字體屬性
-    title_font = get_font_properties(font_size=16)
-    label_font = get_font_properties(font_size=14)
-    legend_font = get_font_properties(font_size=12)
+    # 獲取字體屬性（如果需要）
+    font_prop = get_font_properties()
     
     # 定義函數以獲取單個股票的歷史數據
     def fetch_stock_data(symbol, start_date, end_date):
@@ -121,24 +117,45 @@ if st.button("開始回測"):
             portfolio_cumulative_returns = (1 + portfolio_returns).cumprod()
             benchmark_cumulative_returns = (1 + benchmark_returns).cumprod()
 
-            # 繪製累積收益曲線
-            fig, ax = plt.subplots(figsize=(14,7))
-            ax.plot(portfolio_cumulative_returns, label='投資組合累積收益')  # 移除 fontproperties
-            ax.plot(benchmark_cumulative_returns, label=f'{benchmark_input} 累積收益')  # 移除 fontproperties
+            # 準備 Plotly 圖表
+            fig = go.Figure()
 
-            # 設置標題和軸標籤，並應用字體屬性
-            ax.set_title('投資組合與基準股票累積收益對比', fontsize=16, fontproperties=title_font)
-            ax.set_xlabel('日期', fontsize=14, fontproperties=label_font)
-            ax.set_ylabel('累積收益', fontsize=14, fontproperties=label_font)
+            # 添加投資組合累積收益曲線
+            fig.add_trace(go.Scatter(
+                x=portfolio_cumulative_returns.index,
+                y=portfolio_cumulative_returns.values,
+                mode='lines',
+                name='投資組合累積收益',
+                hovertemplate=
+                    '日期: %{x}<br>' +
+                    '累積收益: %{y:.2f}%<extra></extra>'
+            ))
 
-            # 設置圖例，並應用字體屬性
-            if legend_font:
-                legend = ax.legend(prop=legend_font)
-            else:
-                legend = ax.legend(prop={'size': 12})
+            # 添加基準股票累積收益曲線
+            fig.add_trace(go.Scatter(
+                x=benchmark_cumulative_returns.index,
+                y=benchmark_cumulative_returns.values,
+                mode='lines',
+                name=f'{benchmark_input} 累積收益',
+                hovertemplate=
+                    '日期: %{x}<br>' +
+                    '累積收益: %{y:.2f}%<extra></extra>'
+            ))
 
-            ax.grid(True)
-            st.pyplot(fig)
+            # 設置圖表布局
+            fig.update_layout(
+                title='投資組合與基準股票累積收益對比',
+                xaxis_title='日期',
+                yaxis_title='累積收益',
+                hovermode='x unified',
+                template='plotly_white'
+            )
+
+            # 在圖表中顯示百分比
+            fig.update_yaxes(tickformat=".2%")
+
+            # 顯示 Plotly 圖表
+            st.plotly_chart(fig, use_container_width=True)
 
             # 計算總收益
             total_portfolio_return = portfolio_cumulative_returns.iloc[-1] - 1
