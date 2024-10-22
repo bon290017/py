@@ -1,4 +1,21 @@
 import streamlit as st
+import sys
+import yfinance as yf
+import pandas as pd
+import numpy as np
+import plotly
+import matplotlib
+
+st.write("Python 版本：", sys.version)
+st.write("yfinance 版本：", yf.__version__)
+st.write("pandas 版本：", pd.__version__)
+st.write("numpy 版本：", np.__version__)
+st.write("plotly 版本：", plotly.__version__)
+st.write("matplotlib 版本：", matplotlib.__version__)
+
+
+
+import streamlit as st
 import yfinance as yf
 import pandas as pd
 import numpy as np
