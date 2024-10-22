@@ -5,9 +5,6 @@ import plotly.graph_objs as go
 from datetime import datetime, timedelta
 import plotly.io as pio
 
-# 设置 Plotly 渲染器为 Colab
-pio.renderers.default = 'colab'
-
 # 设置应用标题
 print("多股票回测系统\n")
 
