@@ -97,6 +97,13 @@ if st.button("開始回測"):
         st.write("### 投資組合數據列名")
         st.write(portfolio_data.columns.tolist())
 
+        # 確保列名標準化（移除空格並轉為標準格式）
+        portfolio_data.columns = portfolio_data.columns.str.strip().str.capitalize()
+
+        # 再次顯示列名以確認標準化
+        st.write("### 標準化後的數據列名")
+        st.write(portfolio_data.columns.tolist())
+
         # 檢查是否包含必要的列
         required_columns = ['Date', 'Symbol', 'Close']
         if not all(column in portfolio_data.columns for column in required_columns):
@@ -117,6 +124,17 @@ if st.button("開始回測"):
             st.write("### 投資組合收盤價數據預覽")
             st.write(close_prices.head())
 
+            # 檢查 close_prices 的形狀和數據類型
+            st.write("### 'close_prices' DataFrame 信息")
+            st.write(close_prices.info())
+
+            # 確保所有 'Close' 價格都是數值型，並轉換為浮點數
+            close_prices = close_prices.apply(pd.to_numeric, errors='coerce')
+
+            # **新增調試輸出**：顯示轉換後的 'Close' 價格數據預覽
+            st.write("### 數值型轉換後的投資組合收盤價數據預覽")
+            st.write(close_prices.head())
+
             try:
                 # 處理缺失值
                 close_prices = close_prices.ffill().dropna()
@@ -130,6 +148,10 @@ if st.button("開始回測"):
 
                 # 計算組合的平均每日收益率（等權重）
                 portfolio_returns = returns.mean(axis=1)
+
+                # **新增調試輸出**：顯示組合每日收益率預覽
+                st.write("### 組合每日收益率預覽")
+                st.write(portfolio_returns.head())
 
                 # 獲取基準股票的歷史數據
                 benchmark_data = fetch_stock_data(benchmark_symbol, start_date_dt.strftime('%Y-%m-%d'), end_date_dt.strftime('%Y-%m-%d'))
@@ -151,9 +173,22 @@ if st.button("開始回測"):
                     portfolio_returns = portfolio_returns.fillna(0)
                     benchmark_returns = benchmark_returns.fillna(0)
 
+                    # **新增調試輸出**：顯示對齊後的收益率預覽
+                    st.write("### 對齊後的組合與基準股票收益率預覽")
+                    st.write(pd.DataFrame({
+                        'Portfolio Returns': portfolio_returns.head(),
+                        f'{benchmark_input} Returns': benchmark_returns.head()
+                    }))
+
                     # 計算累積收益
                     portfolio_cumulative_returns = (1 + portfolio_returns).cumprod() - 1
                     benchmark_cumulative_returns = (1 + benchmark_returns).cumprod() - 1
+
+                    # **新增調試輸出**：顯示累積收益預覽
+                    st.write("### 組合累積收益預覽")
+                    st.write(portfolio_cumulative_returns.head())
+                    st.write(f"### 基準股票 {benchmark_input} 累積收益預覽")
+                    st.write(benchmark_cumulative_returns.head())
 
                     # 準備 Plotly 圖表
                     fig = go.Figure()
@@ -191,6 +226,10 @@ if st.button("開始回測"):
 
                     # 設置 Y 軸為百分比格式
                     fig.update_yaxes(tickformat=".2%")
+
+                    # **新增調試輸出**：顯示累積收益圖表前的數據形狀
+                    st.write("### 組合累積收益數據形狀", portfolio_cumulative_returns.shape)
+                    st.write("### 基準股票累積收益數據形狀", benchmark_cumulative_returns.shape)
 
                     # 顯示 Plotly 圖表
                     st.plotly_chart(fig, use_container_width=True)
