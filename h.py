@@ -7,8 +7,22 @@ from datetime import datetime, timedelta
 from matplotlib.font_manager import FontProperties
 import os
 
+# 設置支持中文的字體（如果需要在其他圖表中使用）
+def get_font_properties(font_size=12):
+    font_path = os.path.join("fonts", "NotoSansTC-SemiBold.ttf")
+    if os.path.exists(font_path):
+        try:
+            font_prop = FontProperties(fname=font_path, size=font_size)
+            return font_prop
+        except Exception as e:
+            st.warning(f"加載字體時出錯：{e}。將使用默認字體。")
+            return None
+    else:
+        st.warning("未找到自定義中文字體文件。將使用默認字體。")
+        return None
+
 # 設置應用標題
-st.title("邦的股市回測系統")
+st.title("多股票回測系統")
 
 # 說明文字
 st.write("""
@@ -34,6 +48,9 @@ if start_date > end_date:
 
 # 按鈕觸發回測
 if st.button("開始回測"):
+    # 獲取字體屬性（如果需要）
+    font_prop = get_font_properties()
+    
     # 定義函數以獲取單個股票的歷史數據
     def fetch_stock_data(symbol, start_date, end_date):
         try:
@@ -41,7 +58,6 @@ if st.button("開始回測"):
             if stock.empty:
                 st.warning(f"未能獲取到 {symbol} 的數據。請檢查股票代號是否正確或該股票是否已退市。")
                 return None
-            stock.reset_index(inplace=True)  # 重置索引，將日期變成一個欄位
             stock['Symbol'] = symbol
             return stock
         except Exception as e:
@@ -70,28 +86,130 @@ if st.button("開始回測"):
     if not portfolio_data_list:
         st.error("未能獲取到任何有效的投資組合股票數據。請檢查股票代號並重試。")
     else:
-        # 使用 pd.concat 合併所有股票的數據，忽略索引
-        portfolio_data = pd.concat(portfolio_data_list, ignore_index=True)
+        # 使用 pd.concat 合併所有股票的數據
+        portfolio_data = pd.concat(portfolio_data_list)
+        portfolio_data.reset_index(inplace=True)
 
-        # 顯示欄位名稱以進行調試
-        st.write("投資組合資料的欄位名稱：", portfolio_data.columns.tolist())
+        # 透過 Pivot 表將數據整理為以日期為索引，股票代號為列的收盤價
+        pivot_close = portfolio_data.pivot(index='Date', columns='Symbol', values='Close')
 
-        # 確保 'Date' 欄位為 datetime 類型
-        portfolio_data['Date'] = pd.to_datetime(portfolio_data['Date'])
+        # 處理缺失值（如有）
+        pivot_close = pivot_close.ffill().dropna()
 
-        # 檢查必要的欄位是否存在
-        required_columns = ['Date', 'Symbol', 'Close']
-        missing_columns = [col for col in required_columns if col not in portfolio_data.columns]
-        if missing_columns:
-            st.error(f"資料缺少以下欄位：{missing_columns}")
+        # 計算每日收益率
+        returns = pivot_close.pct_change()
+
+        # 計算組合的平均每日收益率（等權重）
+        portfolio_returns = returns.mean(axis=1)
+
+        # 獲取基準股票的歷史數據
+        benchmark_data = fetch_stock_data(benchmark_symbol, start_date_dt.strftime('%Y-%m-%d'), end_date_dt.strftime('%Y-%m-%d'))
+
+        if benchmark_data is not None and not benchmark_data.empty:
+            # 計算基準股票的每日收益率
+            benchmark_returns = benchmark_data['Close'].pct_change()
+
+            # 對齊日期索引
+            portfolio_returns = portfolio_returns.loc[benchmark_returns.index]
+            benchmark_returns = benchmark_returns.loc[portfolio_returns.index]
+
+            # 處理缺失值
+            portfolio_returns = portfolio_returns.fillna(0)
+            benchmark_returns = benchmark_returns.fillna(0)
+
+            # 計算累積收益
+            portfolio_cumulative_returns = (1 + portfolio_returns).cumprod() - 1
+            benchmark_cumulative_returns = (1 + benchmark_returns).cumprod() - 1
+
+            # 準備 Plotly 圖表
+            fig = go.Figure()
+
+            # 添加投資組合累積收益曲線
+            fig.add_trace(go.Scatter(
+                x=portfolio_cumulative_returns.index,
+                y=portfolio_cumulative_returns.values,
+                mode='lines',
+                name='投資組合累積收益',
+                hovertemplate=
+                    '日期: %{x}<br>' +
+                    '累積收益: %{y:.2%}<extra></extra>'
+            ))
+
+            # 添加基準股票累積收益曲線
+            fig.add_trace(go.Scatter(
+                x=benchmark_cumulative_returns.index,
+                y=benchmark_cumulative_returns.values,
+                mode='lines',
+                name=f'{benchmark_input} 累積收益',
+                hovertemplate=
+                    '日期: %{x}<br>' +
+                    '累積收益: %{y:.2%}<extra></extra>'
+            ))
+
+            # 設置圖表布局
+            fig.update_layout(
+                title='投資組合與基準股票累積收益對比',
+                xaxis_title='日期',
+                yaxis_title='累積收益',
+                hovermode='x unified',
+                template='plotly_white'
+            )
+
+            # 設置 Y 軸為百分比格式
+            fig.update_yaxes(tickformat=".2%")
+
+            # 顯示 Plotly 圖表
+            st.plotly_chart(fig, use_container_width=True)
+
+            # 繪製基準股票的 K 線圖
+            fig_candlestick = go.Figure(data=[go.Candlestick(
+                x=benchmark_data.index,
+                open=benchmark_data['Open'],
+                high=benchmark_data['High'],
+                low=benchmark_data['Low'],
+                close=benchmark_data['Close'],
+                name=f'{benchmark_input} K 線',
+                hovertemplate=
+                    '日期: %{x}<br>' +
+                    '開盤價: %{open}<br>' +
+                    '最高價: %{high}<br>' +
+                    '最低價: %{low}<br>' +
+                    '收盤價: %{close}<extra></extra>'
+            )])
+
+            fig_candlestick.update_layout(
+                title=f'{benchmark_input} K 線圖',
+                xaxis_title='日期',
+                yaxis_title='價格',
+                template='plotly_white'
+            )
+
+            st.plotly_chart(fig_candlestick, use_container_width=True)
+
+            # 計算總收益
+            total_portfolio_return = portfolio_cumulative_returns.iloc[-1]
+            total_benchmark_return = benchmark_cumulative_returns.iloc[-1]
+
+            # 顯示回測結果
+            st.write(f"**投資組合總收益:** {total_portfolio_return * 100:.2f}%")
+            st.write(f"**{benchmark_input} 總收益:** {total_benchmark_return * 100:.2f}%")
+
+            # 計算每月獲利百分比
+            portfolio_monthly = portfolio_cumulative_returns.resample('M').last().pct_change().dropna() * 100
+            benchmark_monthly = benchmark_cumulative_returns.resample('M').last().pct_change().dropna() * 100
+
+            # 合併數據
+            monthly_returns_df = pd.DataFrame({
+                '日期': portfolio_monthly.index.strftime('%Y-%m'),
+                '投資組合月獲利%': portfolio_monthly.values,
+                f'{benchmark_input} 月獲利%': benchmark_monthly.values
+            })
+
+            # 顯示每月獲利數據表
+            st.write("### 每月獲利百分比比較")
+            st.dataframe(monthly_returns_df.style.format({
+                '投資組合月獲利%': "{:.2f}",
+                f'{benchmark_input} 月獲利%': "{:.2f}"
+            }))
         else:
-            # 移除缺失值
-            portfolio_data.dropna(subset=required_columns, inplace=True)
-
-            # 移除重複的日期和股票代號組合，保留第一筆記錄
-            portfolio_data = portfolio_data.drop_duplicates(subset=['Date', 'Symbol'], keep='first')
-
-            # 使用 pivot_table 並指定聚合函數
-            pivot_close = portfolio_data.pivot_table(index='Date', columns='Symbol', values='Close', aggfunc='mean')
-
-            # 處理缺失值（如有
+            st.error(f"無法取得基準股票 {benchmark_input} 的資料。請檢查股票代號是否正確或該股票是否已退市。")
