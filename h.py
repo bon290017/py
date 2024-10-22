@@ -4,7 +4,6 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objs as go
 from datetime import datetime, timedelta
-from matplotlib.font_manager import FontProperties
 import os
 
 # 设置支持中文的字体（如果需要在其他图表中使用）
@@ -12,6 +11,7 @@ def get_font_properties(font_size=12):
     font_path = os.path.join("fonts", "NotoSansTC-SemiBold.ttf")
     if os.path.exists(font_path):
         try:
+            from matplotlib.font_manager import FontProperties
             font_prop = FontProperties(fname=font_path, size=font_size)
             return font_prop
         except Exception as e:
@@ -65,4 +65,28 @@ if st.button("开始回测"):
             return None
 
     # 处理股票代号输入，替换全角逗号为半角逗号，并分割
-    symbols_list = [symbol.strip() + "
+    symbols_list = [symbol.strip() + ".TW" for symbol in symbols_input.replace('，', ',').split(",")]
+
+    # 处理基准股票代号
+    benchmark_symbol = benchmark_input.strip() + ".TW"
+
+    # 定义日期范围（根据用户选择）
+    end_date_dt = datetime.combine(end_date, datetime.min.time())
+    start_date_dt = datetime.combine(start_date, datetime.min.time())
+
+    # 获取多支股票的历史数据
+    portfolio_data_list = []
+
+    for symbol in symbols_list:
+        data = fetch_stock_data(symbol, start_date_dt.strftime('%Y-%m-%d'), end_date_dt.strftime('%Y-%m-%d'))
+        if data is not None:
+            portfolio_data_list.append(data)
+
+    # 检查是否有有效的数据
+    if not portfolio_data_list:
+        st.error("未能获取到任何有效的投资组合股票数据。请检查股票代号并重试。")
+    else:
+        # 使用 pd.concat 合并所有股票的数据
+        portfolio_data = pd.concat(portfolio_data_list)
+        portfolio_data.reset_index(inplace=True)
+        portfolio_data.rename(columns={'Da
