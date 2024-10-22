@@ -1,6 +1,7 @@
-streamlit
-yfinance
-pandas
-numpy
-plotly
-matplotlib
+streamlit>=1.25.0
+yfinance>=0.2.46
+pandas>=2.0.0
+numpy>=1.24.0
+setuptools>=67.6.0
+wheel
+
