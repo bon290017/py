@@ -22,7 +22,7 @@ def get_font_properties(font_size=12):
         return None
 
 # 設置應用標題
-st.title("多股票回測系統")
+st.title("邦的股市回測系統")
 
 # 說明文字
 st.write("""
@@ -161,55 +161,4 @@ if st.button("開始回測"):
             # 顯示 Plotly 圖表
             st.plotly_chart(fig, use_container_width=True)
 
-            # 繪製基準股票的 K 線圖
-            fig_candlestick = go.Figure(data=[go.Candlestick(
-                x=benchmark_data.index,
-                open=benchmark_data['Open'],
-                high=benchmark_data['High'],
-                low=benchmark_data['Low'],
-                close=benchmark_data['Close'],
-                name=f'{benchmark_input} K 線',
-                hovertemplate=
-                    '日期: %{x}<br>' +
-                    '開盤價: %{open}<br>' +
-                    '最高價: %{high}<br>' +
-                    '最低價: %{low}<br>' +
-                    '收盤價: %{close}<extra></extra>'
-            )])
-
-            fig_candlestick.update_layout(
-                title=f'{benchmark_input} K 線圖',
-                xaxis_title='日期',
-                yaxis_title='價格',
-                template='plotly_white'
-            )
-
-            st.plotly_chart(fig_candlestick, use_container_width=True)
-
-            # 計算總收益
-            total_portfolio_return = portfolio_cumulative_returns.iloc[-1]
-            total_benchmark_return = benchmark_cumulative_returns.iloc[-1]
-
-            # 顯示回測結果
-            st.write(f"**投資組合總收益:** {total_portfolio_return * 100:.2f}%")
-            st.write(f"**{benchmark_input} 總收益:** {total_benchmark_return * 100:.2f}%")
-
-            # 計算每月獲利百分比
-            portfolio_monthly = portfolio_cumulative_returns.resample('M').last().pct_change().dropna() * 100
-            benchmark_monthly = benchmark_cumulative_returns.resample('M').last().pct_change().dropna() * 100
-
-            # 合併數據
-            monthly_returns_df = pd.DataFrame({
-                '日期': portfolio_monthly.index.strftime('%Y-%m'),
-                '投資組合月獲利%': portfolio_monthly.values,
-                f'{benchmark_input} 月獲利%': benchmark_monthly.values
-            })
-
-            # 顯示每月獲利數據表
-            st.write("### 每月獲利百分比比較")
-            st.dataframe(monthly_returns_df.style.format({
-                '投資組合月獲利%': "{:.2f}",
-                f'{benchmark_input} 月獲利%': "{:.2f}"
-            }))
-        else:
-            st.error(f"無法取得基準股票 {benchmark_input} 的資料。請檢查股票代號是否正確或該股票是否已退市。")
+            # 繪製基準股
