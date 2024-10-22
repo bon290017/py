@@ -72,16 +72,31 @@ if st.button("開始回測"):
         progress=False
     )
 
+    # **新增調試輸出**：顯示下載的數據
+    st.write("### 下載的投資組合數據預覽")
+    st.write(portfolio_data.head())
+
     if portfolio_data.empty:
         st.error("未能獲取到任何有效的投資組合股票數據。請檢查股票代號並重試。")
     else:
         try:
             # 提取 'Close' 價格
             pivot_close = portfolio_data['Close']
+            
+            # **新增調試輸出**：顯示 'Close' 價格數據
+            st.write("### 投資組合收盤價數據預覽")
+            st.write(pivot_close.head())
+
             # 處理缺失值
             pivot_close = pivot_close.ffill().dropna()
+
+            # **新增調試輸出**：顯示處理後的 'Close' 價格數據
+            st.write("### 處理後的投資組合收盤價數據預覽")
+            st.write(pivot_close.head())
+
             # 計算每日收益率
             returns = pivot_close.pct_change()
+
             # 計算組合的平均每日收益率（等權重）
             portfolio_returns = returns.mean(axis=1)
 
@@ -94,6 +109,10 @@ if st.button("開始回測"):
                 threads=True,
                 progress=False
             )
+
+            # **新增調試輸出**：顯示基準股票數據
+            st.write(f"### 基準股票 {benchmark_input} 數據預覽")
+            st.write(benchmark_data.head())
 
             if benchmark_data is not None and not benchmark_data.empty:
                 # 計算基準股票的每日收益率
