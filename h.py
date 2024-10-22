@@ -7,20 +7,6 @@ from datetime import datetime, timedelta
 from matplotlib.font_manager import FontProperties
 import os
 
-# 設置支持中文的字體（如果需要在其他圖表中使用）
-def get_font_properties(font_size=12):
-    font_path = os.path.join("fonts", "NotoSansTC-SemiBold.ttf")
-    if os.path.exists(font_path):
-        try:
-            font_prop = FontProperties(fname=font_path, size=font_size)
-            return font_prop
-        except Exception as e:
-            st.warning(f"加載字體時出錯：{e}。將使用默認字體。")
-            return None
-    else:
-        st.warning("未找到自定義中文字體文件。將使用默認字體。")
-        return None
-
 # 設置應用標題
 st.title("多股票回測系統")
 
@@ -48,22 +34,6 @@ if start_date > end_date:
 
 # 按鈕觸發回測
 if st.button("開始回測"):
-    # 獲取字體屬性（如果需要）
-    font_prop = get_font_properties()
-    
-    # 定義函數以獲取單個股票的歷史數據
-    def fetch_stock_data(symbol, start_date, end_date):
-        try:
-            stock = yf.download(symbol, start=start_date, end=end_date)
-            if stock.empty:
-                st.warning(f"未能獲取到 {symbol} 的數據。請檢查股票代號是否正確或該股票是否已退市。")
-                return None
-            stock['Symbol'] = symbol
-            return stock
-        except Exception as e:
-            st.error(f"獲取 {symbol} 數據時出錯。錯誤信息：{e}")
-            return None
-
     # 處理股票代號輸入，替換全角逗號為半角逗號，並分割
     symbols_list = [symbol.strip() + ".TW" for symbol in symbols_input.replace('，', ',').split(",")]
 
@@ -74,36 +44,32 @@ if st.button("開始回測"):
     end_date_dt = datetime.combine(end_date, datetime.min.time())
     start_date_dt = datetime.combine(start_date, datetime.min.time())
 
-    # 獲取多支股票的歷史數據
-    portfolio_data_list = []
+    # 下載所有股票的歷史數據
+    portfolio_data = yf.download(
+        symbols_list,
+        start=start_date_dt.strftime('%Y-%m-%d'),
+        end=end_date_dt.strftime('%Y-%m-%d'),
+        group_by='ticker'
+    )
 
-    for symbol in symbols_list:
-        data = fetch_stock_data(symbol, start_date_dt.strftime('%Y-%m-%d'), end_date_dt.strftime('%Y-%m-%d'))
-        if data is not None:
-            portfolio_data_list.append(data)
-
-    # 檢查是否有有效的數據
-    if not portfolio_data_list:
+    if portfolio_data.empty:
         st.error("未能獲取到任何有效的投資組合股票數據。請檢查股票代號並重試。")
     else:
-        # 使用 pd.concat 合併所有股票的數據
-        portfolio_data = pd.concat(portfolio_data_list)
-        portfolio_data.reset_index(inplace=True)
-
-        # 透過 Pivot 表將數據整理為以日期為索引，股票代號為列的收盤價
-        pivot_close = portfolio_data.pivot(index='Date', columns='Symbol', values='Close')
-
-        # 處理缺失值（如有）
+        # 提取 'Close' 價格
+        pivot_close = portfolio_data['Close']
+        # 處理缺失值
         pivot_close = pivot_close.ffill().dropna()
-
         # 計算每日收益率
         returns = pivot_close.pct_change()
-
         # 計算組合的平均每日收益率（等權重）
         portfolio_returns = returns.mean(axis=1)
 
         # 獲取基準股票的歷史數據
-        benchmark_data = fetch_stock_data(benchmark_symbol, start_date_dt.strftime('%Y-%m-%d'), end_date_dt.strftime('%Y-%m-%d'))
+        benchmark_data = yf.download(
+            benchmark_symbol,
+            start=start_date_dt.strftime('%Y-%m-%d'),
+            end=end_date_dt.strftime('%Y-%m-%d')
+        )
 
         if benchmark_data is not None and not benchmark_data.empty:
             # 計算基準股票的每日收益率
