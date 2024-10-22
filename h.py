@@ -93,19 +93,31 @@ if st.button("開始回測"):
         st.write("### 合併後的投資組合數據預覽")
         st.write(portfolio_data.head())
 
+        # 顯示所有列名以進行調試
+        st.write("### 投資組合數據列名")
+        st.write(portfolio_data.columns.tolist())
+
         # 檢查是否包含必要的列
         required_columns = ['Date', 'Symbol', 'Close']
         if not all(column in portfolio_data.columns for column in required_columns):
-            st.error(f"數據缺少必要的列。必須包含：{required_columns}")
+            missing_cols = [col for col in required_columns if col not in portfolio_data.columns]
+            st.error(f"數據缺少必要的列：{missing_cols}")
         else:
-            try:
-                # 提取 'Close' 價格
+            # 檢查重複的 Date 和 Symbol 組合
+            duplicates = portfolio_data.duplicated(subset=['Date', 'Symbol'], keep=False)
+            if duplicates.any():
+                st.warning("數據中存在重複的 Date 和 Symbol 組合。將進行匯總。")
+                # 使用 pivot_table 進行匯總，這裡選擇 'last' 作為匯總方法
+                close_prices = portfolio_data.pivot_table(index='Date', columns='Symbol', values='Close', aggfunc='last')
+            else:
+                # 使用 pivot 進行轉換
                 close_prices = portfolio_data.pivot(index='Date', columns='Symbol', values='Close')
 
-                # **新增調試輸出**：顯示 'Close' 價格數據預覽
-                st.write("### 投資組合收盤價數據預覽")
-                st.write(close_prices.head())
+            # **新增調試輸出**：顯示 'Close' 價格數據預覽
+            st.write("### 投資組合收盤價數據預覽")
+            st.write(close_prices.head())
 
+            try:
                 # 處理缺失值
                 close_prices = close_prices.ffill().dropna()
 
