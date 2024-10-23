@@ -92,8 +92,6 @@ with st.sidebar:
     if use_compound:
         initial_capital = st.number_input('初始資金（元）', min_value=0, value=10000)
         monthly_investment = st.number_input('每月投入（元）', min_value=0, value=1000)
-        # 移除目標資產的輸入
-        # target_amount = st.number_input('目標資產（元）', min_value=0, value=1000000)
 
 # 主體內容
 if strategy_stocks and benchmark_stock and start_date <= end_date:
@@ -130,15 +128,11 @@ if strategy_stocks and benchmark_stock and start_date <= end_date:
             xaxis_title='日期',
             yaxis_title='累積漲幅（%）',
             hovermode='x unified',
-            yaxis=dict(tickformat='.2f%', showgrid=True),  # 顯示兩位小數，並添加百分比符號
+            yaxis=dict(tickformat='.2f%', showgrid=True),
             legend=dict(x=0, y=1)
         )
 
         st.plotly_chart(fig, use_container_width=True)
-
-        # 移除數據表格顯示
-        # st.subheader("數據表格")
-        # st.dataframe(comparison_df)
 
         # 如果使用複利計算機，進行計算
         if use_compound:
@@ -150,35 +144,90 @@ if strategy_stocks and benchmark_stock and start_date <= end_date:
             strategy_total_return = strategy_performance.iloc[-1] / 100  # 百分比轉換為小數
             strategy_annual_return = (1 + strategy_total_return) ** (1 / years) - 1
 
+            # 計算基準股票的年化報酬率
+            benchmark_total_return = benchmark_performance.iloc[-1] / 100  # 百分比轉換為小數
+            benchmark_annual_return = (1 + benchmark_total_return) ** (1 / years) - 1
+
             # 計算月收益率和總月數
-            r_monthly = strategy_annual_return / 12
-            n_months = years * 12
+            strategy_r_monthly = strategy_annual_return / 12
+            benchmark_r_monthly = benchmark_annual_return / 12
+            n_months = int(years * 12)
 
             # 建立時間軸
-            dates = [start_date + timedelta(days=30*i) for i in range(int(n_months)+1)]
+            dates = [start_date + timedelta(days=30*i) for i in range(n_months+1)]
             if dates[-1] > end_date:
                 dates[-1] = end_date
 
-            # 計算每個月的資產增長
-            total_capital = []
+            # 計算策略組合的資產增長
+            strategy_total_capital = []
             for i in range(len(dates)):
                 # 初始資金增長
-                FV_initial = initial_capital * (1 + r_monthly) ** i
+                FV_initial = initial_capital * (1 + strategy_r_monthly) ** i
                 # 每月投入增長
-                if r_monthly != 0:
-                    FV_monthly = monthly_investment * (( (1 + r_monthly) ** i - 1) / r_monthly)
+                if strategy_r_monthly != 0:
+                    FV_monthly = monthly_investment * (( (1 + strategy_r_monthly) ** i - 1) / strategy_r_monthly)
                 else:
                     FV_monthly = monthly_investment * i
                 total = FV_initial + FV_monthly
-                total_capital.append(total)
+                strategy_total_capital.append(total)
 
-            # 繪製資產增長圖表
+            # 計算基準股票的資產增長
+            benchmark_total_capital = []
+            for i in range(len(dates)):
+                # 初始資金增長
+                FV_initial = initial_capital * (1 + benchmark_r_monthly) ** i
+                # 每月投入增長
+                if benchmark_r_monthly != 0:
+                    FV_monthly = monthly_investment * (( (1 + benchmark_r_monthly) ** i - 1) / benchmark_r_monthly)
+                else:
+                    FV_monthly = monthly_investment * i
+                total = FV_initial + FV_monthly
+                benchmark_total_capital.append(total)
+
+            # 資產增長資料表
+            growth_df = pd.DataFrame({
+                '日期': dates,
+                '策略組合資產': strategy_total_capital,
+                f'{benchmark_stock} 資產': benchmark_total_capital
+            })
+
+            # 顯示資產增長資料表
+            st.subheader("資產增長資料表")
+            st.dataframe(growth_df)
+
+            # 繪製資產增長柱狀圖
             fig2 = go.Figure()
-            fig2.add_trace(go.Scatter(
-                x=dates, y=total_capital,
-                mode='lines+markers', name='總資產'
+
+            # 策略組合資產增長
+            fig2.add_trace(go.Bar(
+                x=growth_df['日期'],
+                y=[initial_capital + monthly_investment * i for i in range(len(dates))],
+                name='策略組合本金',
+                marker_color='blue'
             ))
+            fig2.add_trace(go.Bar(
+                x=growth_df['日期'],
+                y=growth_df['策略組合資產'] - [initial_capital + monthly_investment * i for i in range(len(dates))],
+                name='策略組合收益',
+                marker_color='lightblue'
+            ))
+
+            # 基準股票資產增長
+            fig2.add_trace(go.Bar(
+                x=growth_df['日期'],
+                y=[initial_capital + monthly_investment * i for i in range(len(dates))],
+                name=f'{benchmark_stock} 本金',
+                marker_color='green'
+            ))
+            fig2.add_trace(go.Bar(
+                x=growth_df['日期'],
+                y=growth_df[f'{benchmark_stock} 資產'] - [initial_capital + monthly_investment * i for i in range(len(dates))],
+                name=f'{benchmark_stock} 收益',
+                marker_color='lightgreen'
+            ))
+
             fig2.update_layout(
+                barmode='stack',
                 title='資產增長圖',
                 xaxis_title='日期',
                 yaxis_title='資產總額（元）',
@@ -187,13 +236,16 @@ if strategy_stocks and benchmark_stock and start_date <= end_date:
             )
             st.plotly_chart(fig2, use_container_width=True)
 
-            # 顯示最終結果
-            final_capital = total_capital[-1]
+            # 顯示最終結果，使用表格形式
+            result_df = pd.DataFrame({
+                '項目': ['策略組合', f'基準股票（{benchmark_stock}）'],
+                '累積漲幅（%）': [f"{strategy_total_return * 100:.2f}%", f"{benchmark_total_return * 100:.2f}%"],
+                '年化報酬率（%）': [f"{strategy_annual_return * 100:.2f}%", f"{benchmark_annual_return * 100:.2f}%"],
+                '預期資產（元）': [f"{strategy_total_capital[-1]:,.0f}", f"{benchmark_total_capital[-1]:,.0f}"]
+            })
 
-            st.subheader("複利計算結果")
-            st.write(f"策略投資累積漲幅：約 {strategy_total_return * 100:.2f}%")
-            st.write(f"年化報酬率：約 {strategy_annual_return * 100:.2f}%")
-            st.write(f"投資 {years:.2f} 年後的預期資產：約 {final_capital:,.0f} 元")
+            st.subheader("複利計算結果比較")
+            st.table(result_df)
 
     else:
         st.error("資料加載或處理失敗，請檢查您的股票代碼。")
