@@ -9,12 +9,12 @@ from datetime import date
 
 # 設定頁面配置
 st.set_page_config(
-    page_title="台灣股市回測系統",
+    page_title="邦的股市回測系統",
     layout="wide"
 )
 
 # 標題
-st.title('📈 台灣股市回測系統')
+st.title('📈 邦的股市回測系統')
 
 # 功能函數
 def load_stock_data(stock_list, start_date, end_date):
@@ -22,9 +22,8 @@ def load_stock_data(stock_list, start_date, end_date):
     for stock in stock_list:
         # yfinance 中，台灣股票代碼需要加上 ".TW"
         ticker = f"{stock}.TW"
-        st.write(f"正在下載股票代碼為 {stock} 的資料...")
         try:
-            df = yf.download(ticker, start=start_date, end=end_date)
+            df = yf.download(ticker, start=start_date, end=end_date, progress=False)
             if df.empty:
                 st.warning(f"無法下載股票代碼為 {stock} 的資料，數據為空。")
             else:
@@ -32,7 +31,6 @@ def load_stock_data(stock_list, start_date, end_date):
                 df = df[['Adj Close']].dropna()
                 df.rename(columns={'Adj Close': stock}, inplace=True)
                 data_frames.append(df)
-                st.write(f"成功下載 {stock} 的資料，共有 {len(df)} 條記錄。")
         except Exception as e:
             st.warning(f"下載股票代碼為 {stock} 的資料時出現錯誤: {e}")
     if data_frames:
@@ -70,7 +68,7 @@ def load_and_process_data(strategy_stocks, benchmark_stock, start_date, end_date
 with st.sidebar:
     st.header("選項設定")
     # 日期選擇器
-    start_date = st.date_input('選擇開始日期', value=date(2023, 1, 1))
+    start_date = st.date_input('選擇開始日期', value=date(2024, 1, 1))
     end_date = st.date_input('選擇結束日期', value=date.today())
     if start_date > end_date:
         st.error('開始日期不能晚於結束日期')
@@ -137,13 +135,9 @@ if strategy_stocks and benchmark_stock and start_date <= end_date:
 
         st.plotly_chart(fig, use_container_width=True)
 
-        # 顯示數據表格
-        comparison_df.reset_index(inplace=True)
-        comparison_df.rename(columns={'index': '日期'}, inplace=True)
-        # 確保日期格式正確
-        comparison_df['日期'] = pd.to_datetime(comparison_df['日期']).dt.date
-        st.subheader("數據表格")
-        st.dataframe(comparison_df)
+        # 移除數據表格顯示
+        # st.subheader("數據表格")
+        # st.dataframe(comparison_df)
 
         # 如果使用複利計算機，進行計算
         if use_compound:
@@ -151,21 +145,38 @@ if strategy_stocks and benchmark_stock and start_date <= end_date:
             total_days = (end_date - start_date).days
             years = total_days / 365.25
 
-            # 計算年化報酬率
-            total_return = strategy_performance.iloc[-1] / 100  # 百分比轉換為小數
-            annual_return = (1 + total_return) ** (1 / years) - 1
+            # 計算策略組合的年化報酬率
+            strategy_total_return = strategy_performance.iloc[-1] / 100  # 百分比轉換為小數
+            strategy_annual_return = (1 + strategy_total_return) ** (1 / years) - 1
 
-            # 計算最終資產
+            # 計算基準股票的年化報酬率
+            benchmark_total_return = benchmark_performance.iloc[-1] / 100  # 百分比轉換為小數
+            benchmark_annual_return = (1 + benchmark_total_return) ** (1 / years) - 1
+
+            # 計算策略組合的最終資產
             n = years * 1  # 每年複利一次
-            r = annual_return
-            if r != 0:
-                future_value = initial_capital * (1 + r) ** n + monthly_investment * 12 * (((1 + r) ** n - 1) / (r / 12))
+            rs = strategy_annual_return
+            rb = benchmark_annual_return
+            if rs != 0:
+                strategy_future_value = initial_capital * (1 + rs) ** n + monthly_investment * 12 * (((1 + rs) ** n - 1) / (rs / 12))
             else:
-                future_value = initial_capital + monthly_investment * 12 * n
+                strategy_future_value = initial_capital + monthly_investment * 12 * n
 
-            st.subheader("複利計算結果")
-            st.write(f"年化報酬率：約 {annual_return * 100:.2f}%")
-            st.write(f"投資 {years:.2f} 年後的預期資產：約 {future_value:,.0f} 元")
+            # 計算基準股票的最終資產
+            if rb != 0:
+                benchmark_future_value = initial_capital * (1 + rb) ** n + monthly_investment * 12 * (((1 + rb) ** n - 1) / (rb / 12))
+            else:
+                benchmark_future_value = initial_capital + monthly_investment * 12 * n
+
+            st.subheader("複利計算結果比較")
+            st.write(f"**策略組合：**")
+            st.write(f"年化報酬率：約 {strategy_annual_return * 100:.2f}%")
+            st.write(f"投資 {years:.2f} 年後的預期資產：約 {strategy_future_value:,.0f} 元")
+
+            st.write(f"**基準股票（{benchmark_stock}）：**")
+            st.write(f"年化報酬率：約 {benchmark_annual_return * 100:.2f}%")
+            st.write(f"投資 {years:.2f} 年後的預期資產：約 {benchmark_future_value:,.0f} 元")
+
     else:
         st.error("資料加載或處理失敗，請檢查您的股票代碼。")
 else:
