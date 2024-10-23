@@ -7,13 +7,22 @@ import plotly.graph_objs as go
 import yfinance as yf
 from datetime import date, datetime, timedelta
 
-# 設定頁面配置
+# 设置页面配置
 st.set_page_config(
     page_title="邦的股市回測系統",
     layout="wide"
 )
 
-# 標題
+# 隐藏 Streamlit 的默认设置按钮和页脚
+hide_streamlit_style = """
+            <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            </style>
+            """
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
+# 标题
 st.title('📈 邦的股市回測系統')
 
 # 功能函數
@@ -213,8 +222,6 @@ if strategy_stocks and benchmark_stock and start_date <= end_date:
             # 顯示資料表
             st.subheader("收益資料表")
             st.dataframe(growth_df_display)
-
-            # **在這裡進行修改，確保收益比較圖不顯示小數點**
 
             # 將用於繪圖的資料也進行四捨五入，轉換為整數
             plot_growth_df = growth_df.copy()
