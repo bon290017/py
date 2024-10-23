@@ -5,7 +5,7 @@ import plotly.graph_objs as go
 from datetime import datetime, timedelta
 import os
 
-# 設置支持中文的字體（如果需要在其他圖表中使用）
+# 設置支援中文的字體（如果需要在其他圖表中使用）
 def get_font_properties(font_size=12):
     font_path = os.path.join("fonts", "NotoSansTC-SemiBold.ttf")
     if os.path.exists(font_path):
@@ -98,7 +98,10 @@ if st.button("開始回測"):
         st.write(portfolio_data.columns.tolist())
 
         # 確保列名標準化（移除空格並轉為標準格式）
-        portfolio_data.columns = portfolio_data.columns.str.strip().str.capitalize()
+        if isinstance(portfolio_data.columns, pd.MultiIndex):
+            portfolio_data.columns = ['_'.join(col).strip() for col in portfolio_data.columns.values]
+        else:
+            portfolio_data.columns = portfolio_data.columns.str.strip().str.capitalize()
 
         # 再次顯示列名以確認標準化
         st.write("### 標準化後的數據列名")
@@ -264,8 +267,8 @@ if st.button("開始回測"):
                     total_benchmark_return = benchmark_cumulative_returns.iloc[-1]
 
                     # 顯示回測結果
-                    st.write(f"**投資組合總收益:** {total_portfolio_return * 100:.2f}%")
-                    st.write(f"**{benchmark_input} 總收益:** {total_benchmark_return * 100:.2f}%")
+                    st.write(f"**投資組合總收益：** {total_portfolio_return * 100:.2f}%")
+                    st.write(f"**{benchmark_input} 總收益：** {total_benchmark_return * 100:.2f}%")
 
                     # 計算每月獲利百分比
                     portfolio_monthly = portfolio_cumulative_returns.resample('M').last().pct_change().dropna() * 100
