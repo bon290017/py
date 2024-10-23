@@ -4,7 +4,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objs as go
-import os
+import yfinance as yf
 
 # 設定頁面配置
 st.set_page_config(
@@ -19,12 +19,17 @@ st.title('📈 台灣股市回測系統')
 def load_stock_data(stock_list):
     data = {}
     for stock in stock_list:
-        file_path = f'data/{stock}.csv'  # 請確保資料存放在 data 資料夾中
-        if os.path.exists(file_path):
-            df = pd.read_csv(file_path, index_col='Date', parse_dates=True)
-            data[stock] = df['Close']
-        else:
-            st.warning(f"找不到股票代碼為 {stock} 的資料檔案。")
+        # yfinance 中，台灣股票代碼需要加上 ".TW"
+        ticker = f"{stock}.TW"
+        try:
+            df = yf.download(ticker, start="2010-01-01")
+            if df.empty:
+                st.warning(f"無法下載股票代碼為 {stock} 的資料。")
+            else:
+                df = df.dropna()
+                data[stock] = df['Close']
+        except Exception as e:
+            st.warning(f"下載股票代碼為 {stock} 的資料時出現錯誤: {e}")
     return pd.DataFrame(data)
 
 def calculate_strategy_performance(strategy_data):
@@ -98,6 +103,6 @@ if strategy_stocks and benchmark_stock:
         st.subheader("數據表格")
         st.dataframe(comparison_df)
     else:
-        st.error("資料加載失敗，請檢查您的股票代碼和資料檔案。")
+        st.error("資料加載失敗，請檢查您的股票代碼。")
 else:
     st.info("請在左側選擇策略股票和基準股票。")
