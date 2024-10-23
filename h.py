@@ -45,8 +45,8 @@ def calculate_cumulative_returns(price_data):
     if price_data.empty:
         st.error("價格數據為空，無法計算累積收益。")
         return pd.Series(dtype='float64')
-    # 計算累積收益（百分比），並轉換為整數
-    cumulative_returns = ((price_data / price_data.iloc[0] - 1) * 100).round(0).astype(int)
+    # 計算累積收益（百分比），保留兩位小數
+    cumulative_returns = ((price_data / price_data.iloc[0] - 1) * 100).round(2)
     return cumulative_returns
 
 def load_and_process_data(strategy_stocks, benchmark_stock, start_date, end_date):
@@ -130,7 +130,7 @@ if strategy_stocks and benchmark_stock and start_date <= end_date:
             xaxis_title='日期',
             yaxis_title='累積漲幅（%）',
             hovermode='x unified',
-            yaxis=dict(tickformat=',d%', showgrid=True),  # 顯示整數，並添加百分比符號
+            yaxis=dict(tickformat='.2f%', showgrid=True),  # 顯示兩位小數，並添加百分比符號
             legend=dict(x=0, y=1)
         )
 
