@@ -17,7 +17,7 @@ st.title('📈 台灣股市回測系統')
 
 # 功能函數
 def load_stock_data(stock_list):
-    data = {}
+    data_frames = []
     for stock in stock_list:
         # yfinance 中，台灣股票代碼需要加上 ".TW"
         ticker = f"{stock}.TW"
@@ -27,13 +27,16 @@ def load_stock_data(stock_list):
             if df.empty:
                 st.warning(f"無法下載股票代碼為 {stock} 的資料，數據為空。")
             else:
-                df = df.dropna()
-                data[stock] = df['Close']
+                df = df[['Close']].dropna()
+                df.rename(columns={'Close': stock}, inplace=True)
+                data_frames.append(df)
                 st.write(f"成功下載 {stock} 的資料，共有 {len(df)} 條記錄。")
         except Exception as e:
             st.warning(f"下載股票代碼為 {stock} 的資料時出現錯誤: {e}")
-    if data:
-        return pd.DataFrame(data)
+    if data_frames:
+        # 合併所有 DataFrame，按照日期索引對齊
+        combined_df = pd.concat(data_frames, axis=1)
+        return combined_df
     else:
         return pd.DataFrame()  # 返回空的 DataFrame
 
