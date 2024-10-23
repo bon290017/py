@@ -40,19 +40,12 @@ def load_stock_data(stock_list):
     else:
         return pd.DataFrame()  # 返回空的 DataFrame
 
-def calculate_strategy_performance(strategy_data):
-    if strategy_data.empty:
-        st.error("策略數據為空，無法計算績效。")
+def calculate_cumulative_returns(price_data):
+    if price_data.empty:
+        st.error("價格數據為空，無法計算累積收益。")
         return pd.Series(dtype='float64')
-    # 計算每日報酬率
-    returns = strategy_data.pct_change().dropna()
-    if returns.empty:
-        st.error("策略數據的回報率為空，無法計算績效。")
-        return pd.Series(dtype='float64')
-    # 假設等權重投資
-    strategy_returns = returns.mean(axis=1)
-    # 計算累積報酬率
-    cumulative_returns = (1 + strategy_returns).cumprod()
+    # 計算累積收益（百分比）
+    cumulative_returns = (price_data / price_data.iloc[0] - 1) * 100
     return cumulative_returns
 
 def load_and_process_data(strategy_stocks, benchmark_stock):
@@ -64,9 +57,12 @@ def load_and_process_data(strategy_stocks, benchmark_stock):
     if benchmark_data.empty:
         st.error("基準股票的資料為空，請檢查股票代碼或數據來源。")
         return None, None
-    strategy_performance = calculate_strategy_performance(strategy_data)
-    benchmark_performance = calculate_strategy_performance(benchmark_data)
-    return strategy_performance, benchmark_performance
+    # 計算策略組合的平均價格
+    strategy_price = strategy_data.mean(axis=1)
+    # 計算累積收益
+    strategy_cumulative_returns = calculate_cumulative_returns(strategy_price)
+    benchmark_cumulative_returns = calculate_cumulative_returns(benchmark_data.iloc[:, 0])
+    return strategy_cumulative_returns, benchmark_cumulative_returns
 
 # 側邊欄選項
 with st.sidebar:
@@ -112,9 +108,9 @@ if strategy_stocks and benchmark_stock:
             mode='lines', name=benchmark_stock
         ))
         fig.update_layout(
-            title='策略組合與基準股票的績效比較',
+            title='策略組合與基準股票的累積漲幅比較',
             xaxis_title='日期',
-            yaxis_title='累積報酬率',
+            yaxis_title='累積漲幅（%）',
             hovermode='x unified',
             legend=dict(x=0, y=1)
         )
