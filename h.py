@@ -83,11 +83,8 @@ with st.sidebar:
         default=['2330', '2317']
     )
 
-    # 選擇基準股票
-    benchmark_stock = st.selectbox(
-        '選擇比較的股票',
-        stock_options  # 使用相同的股票選項，包括 ETF
-    )
+    # 讓使用者輸入比較的股票代號
+    benchmark_stock = st.text_input('輸入比較的股票代號', value='0050')
 
     # 複利計算機選項
     st.subheader("複利計算機")
@@ -133,7 +130,7 @@ if strategy_stocks and benchmark_stock and start_date <= end_date:
             xaxis_title='日期',
             yaxis_title='累積漲幅（%）',
             hovermode='x unified',
-            yaxis=dict(tickformat=',d'),  # 去除小數點，顯示整數
+            yaxis=dict(tickformat=',d%', showgrid=True),  # 顯示整數，並添加百分比符號
             legend=dict(x=0, y=1)
         )
 
@@ -142,6 +139,8 @@ if strategy_stocks and benchmark_stock and start_date <= end_date:
         # 顯示數據表格
         comparison_df.reset_index(inplace=True)
         comparison_df.rename(columns={'index': '日期'}, inplace=True)
+        # 確保日期格式正確
+        comparison_df['日期'] = pd.to_datetime(comparison_df['日期']).dt.date
         st.subheader("數據表格")
         st.dataframe(comparison_df)
 
@@ -156,11 +155,10 @@ if strategy_stocks and benchmark_stock and start_date <= end_date:
             annual_return = (1 + total_return) ** (1 / years) - 1
 
             # 計算最終資產
-            # 未來價值 FV = PV * (1 + r) ^ n + PMT * [((1 + r) ^ n - 1) / r]
             n = years * 1  # 每年複利一次
             r = annual_return
             if r != 0:
-                future_value = initial_capital * (1 + r) ** n + monthly_investment * 12 * [((1 + r) ** n - 1) / r]
+                future_value = initial_capital * (1 + r) ** n + monthly_investment * 12 * (((1 + r) ** n - 1) / (r / 12))
             else:
                 future_value = initial_capital + monthly_investment * 12 * n
 
@@ -170,4 +168,4 @@ if strategy_stocks and benchmark_stock and start_date <= end_date:
     else:
         st.error("資料加載或處理失敗，請檢查您的股票代碼。")
 else:
-    st.info("請在左側選擇策略股票和基準股票，並確保開始日期早於結束日期。")
+    st.info("請在左側選擇策略股票和比較的股票代號，並確保開始日期早於結束日期。")
