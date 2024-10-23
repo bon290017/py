@@ -1,68 +1,103 @@
+# app.py
+
 import streamlit as st
 import pandas as pd
-import yfinance as yf
-import matplotlib
-matplotlib.use('Agg')  # Use a non-interactive backend for Streamlit
-import matplotlib.pyplot as plt
-import datetime
 import numpy as np
+import plotly.graph_objs as go
+import os
 
-# 此代碼會利用 Yahoo Finance API 獲取股票資料
+# 設定頁面配置
+st.set_page_config(
+    page_title="台灣股市回測系統",
+    layout="wide"
+)
 
-def get_stock_data(ticker, start, end):
-    stock = yf.Ticker(ticker)
-    data = stock.history(start=start, end=end)
-    return data
+# 標題
+st.title('📈 台灣股市回測系統')
 
-def combine_stocks(tickers, start, end):
-    combined_data = None
-    for ticker in tickers:
-        data = get_stock_data(ticker, start, end)['Close']
-        data = data.rename(ticker)
-        if combined_data is None:
-            combined_data = data
+# 功能函數
+def load_stock_data(stock_list):
+    data = {}
+    for stock in stock_list:
+        file_path = f'data/{stock}.csv'  # 請確保資料存放在 data 資料夾中
+        if os.path.exists(file_path):
+            df = pd.read_csv(file_path, index_col='Date', parse_dates=True)
+            data[stock] = df['Close']
         else:
-            combined_data += data
-    combined_data /= len(tickers)  # 合成經平均的統一資料
-    return combined_data
+            st.warning(f"找不到股票代碼為 {stock} 的資料檔案。")
+    return pd.DataFrame(data)
 
-# Streamlit 主程序
-st.title('Taiwan Stock Backtesting System')
+def calculate_strategy_performance(strategy_data):
+    # 計算每日報酬率
+    returns = strategy_data.pct_change().dropna()
+    # 假設等權重投資
+    strategy_returns = returns.mean(axis=1)
+    # 計算累積報酬率
+    cumulative_returns = (1 + strategy_returns).cumprod()
+    return cumulative_returns
 
-# 設定選擇股票代碼
-stock_symbols = st.text_input('Enter stock symbols (comma separated)', '2330.TW, 2317.TW')
-benchmark_symbol = st.text_input('Enter benchmark stock symbol', '0050.TW')
+def load_and_process_data(strategy_stocks, benchmark_stock):
+    strategy_data = load_stock_data(strategy_stocks)
+    benchmark_data = load_stock_data([benchmark_stock])
+    if strategy_data.empty or benchmark_data.empty:
+        st.error("無法加載策略股票或基準股票的資料。")
+        return None, None
+    strategy_performance = calculate_strategy_performance(strategy_data)
+    benchmark_performance = calculate_strategy_performance(benchmark_data)
+    return strategy_performance, benchmark_performance
 
-# 選擇回歸期間
-start_date = st.date_input('Start date', datetime.date(2020, 1, 1))
-end_date = st.date_input('End date', datetime.date.today())
+# 側邊欄選項
+with st.sidebar:
+    st.header("選項設定")
+    # 選擇策略股票
+    strategy_stocks = st.multiselect(
+        '選擇組合策略的股票（至少選擇一支）',
+        ['2330', '2317', '2412', '1301', '2308'],  # 請替換為您關心的股票代碼
+        default=['2330', '2317']
+    )
 
-if st.button('Run Backtest'):
-    symbols = [symbol.strip() for symbol in stock_symbols.split(',')]
-    benchmark = benchmark_symbol.strip()
+    # 選擇基準股票
+    benchmark_stock = st.selectbox(
+        '選擇比較的股票',
+        ['0050', '0056', '2330']  # 常用的基準，如 ETF 或大型權值股
+    )
 
-    # 獲取並合成策略數據
-    strategy_data = combine_stocks(symbols, start_date, end_date)
-    benchmark_data = get_stock_data(benchmark, start_date, end_date)['Close']
+# 主體內容
+if strategy_stocks and benchmark_stock:
+    # 加載和處理資料
+    strategy_performance, benchmark_performance = load_and_process_data(strategy_stocks, benchmark_stock)
 
-    # 策略數據和標準比較圖表
-    fig, ax = plt.subplots()
-    ax.plot(strategy_data.index, strategy_data, label='Strategy', color='blue')
-    ax.plot(benchmark_data.index, benchmark_data, label=benchmark, color='red')
-    ax.set_xlabel('Date')
-    ax.set_ylabel('Price')
-    ax.set_title('Stock Backtesting Comparison')
-    ax.legend()
-    st.pyplot(fig)
+    if strategy_performance is not None and benchmark_performance is not None:
+        # 合併資料
+        comparison_df = pd.DataFrame({
+            '策略組合': strategy_performance,
+            benchmark_stock: benchmark_performance
+        })
 
-    # 計算平均收益率和平均市場相關性
-    strategy_return = strategy_data.pct_change().mean() * 252
-    benchmark_return = benchmark_data.pct_change().mean() * 252
-    correlation = np.corrcoef(strategy_data.pct_change()[1:], benchmark_data.pct_change()[1:])[0, 1]
+        # 繪製互動式圖表
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=comparison_df.index, y=comparison_df['策略組合'],
+            mode='lines', name='策略組合'
+        ))
+        fig.add_trace(go.Scatter(
+            x=comparison_df.index, y=comparison_df[benchmark_stock],
+            mode='lines', name=benchmark_stock
+        ))
+        fig.update_layout(
+            title='策略組合與基準股票的績效比較',
+            xaxis_title='日期',
+            yaxis_title='累積報酬率',
+            hovermode='x unified',
+            legend=dict(x=0, y=1)
+        )
 
-    st.write(f"Average Strategy Return: {strategy_return:.2%}")
-    st.write(f"Average Benchmark Return: {benchmark_return:.2%}")
-    st.write(f"Correlation between Strategy and Benchmark: {correlation:.2f}")
+        st.plotly_chart(fig, use_container_width=True)
 
-# GitHub 鏈接
-st.markdown("[View Source Code on GitHub](https://github.com/yourusername/yourrepository)")
+        # 顯示數據表格
+        st.subheader("數據表格")
+        st.dataframe(comparison_df)
+    else:
+        st.error("資料加載失敗，請檢查您的股票代碼和資料檔案。")
+else:
+    st.info("請在左側選擇策略股票和基準股票。")
