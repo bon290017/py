@@ -214,35 +214,49 @@ if strategy_stocks and benchmark_stock and start_date <= end_date:
             st.subheader("收益資料表")
             st.dataframe(growth_df_display)
 
+            # **在這裡進行修改，確保收益比較圖不顯示小數點**
+
+            # 將用於繪圖的資料也進行四捨五入，轉換為整數
+            plot_growth_df = growth_df.copy()
+            plot_growth_df[cols_to_round] = plot_growth_df[cols_to_round].round(0).astype(int)
+
             # 繪製收益比較圖，包含本金
             fig2 = go.Figure()
 
             # 策略組合
             fig2.add_trace(go.Bar(
-                x=growth_df['日期'],
-                y=growth_df['策略組合本金'],
+                x=plot_growth_df['日期'],
+                y=plot_growth_df['策略組合本金'],
                 name='策略組合本金',
-                marker_color='lightblue'
+                marker_color='lightblue',
+                text=plot_growth_df['策略組合本金'],
+                textposition='auto'
             ))
             fig2.add_trace(go.Bar(
-                x=growth_df['日期'],
-                y=growth_df['策略組合收益'],
+                x=plot_growth_df['日期'],
+                y=plot_growth_df['策略組合收益'],
                 name='策略組合收益',
-                marker_color='blue'
+                marker_color='blue',
+                text=plot_growth_df['策略組合收益'],
+                textposition='auto'
             ))
 
             # 基準股票
             fig2.add_trace(go.Bar(
-                x=growth_df['日期'],
-                y=growth_df[f'{benchmark_stock} 本金'],
+                x=plot_growth_df['日期'],
+                y=plot_growth_df[f'{benchmark_stock} 本金'],
                 name=f'{benchmark_stock} 本金',
-                marker_color='lightgreen'
+                marker_color='lightgreen',
+                text=plot_growth_df[f'{benchmark_stock} 本金'],
+                textposition='auto'
             ))
             fig2.add_trace(go.Bar(
-                x=growth_df['日期'],
-                y=growth_df[f'{benchmark_stock} 收益'],
+                x=plot_growth_df['日期'],
+                y=plot_growth_df[f'{benchmark_stock} 收益'],
                 name=f'{benchmark_stock} 收益',
-                marker_color='green'
+                marker_color='green',
+                text=plot_growth_df[f'{benchmark_stock} 收益'],
+                textposition='auto'
             ))
 
             fig2.update_layout(
@@ -254,6 +268,7 @@ if strategy_stocks and benchmark_stock and start_date <= end_date:
                 legend=dict(x=0, y=1),
                 yaxis_tickformat=',',  # 數字不顯示科學記號或縮寫
             )
+
             st.plotly_chart(fig2, use_container_width=True)
 
             # 顯示最終結果，使用表格形式
