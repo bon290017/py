@@ -103,6 +103,9 @@ if st.button("開始回測"):
         else:
             portfolio_data.columns = portfolio_data.columns.str.strip().str.capitalize()
 
+        # 修正標準化後的列名，以確保包含必要的列
+        portfolio_data.columns = [col if col not in ['', 'Date_', 'Symbol_'] else col.replace('_', '') for col in portfolio_data.columns]
+
         # 再次顯示列名以確認標準化
         st.write("### 標準化後的數據列名")
         st.write(portfolio_data.columns.tolist())
