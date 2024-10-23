@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import yfinance as yf
+import matplotlib
+matplotlib.use('Agg')  # Use a non-interactive backend for Streamlit
 import matplotlib.pyplot as plt
 import datetime
 import numpy as np
