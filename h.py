@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objs as go
 import yfinance as yf
-from datetime import date
+from datetime import date, datetime, timedelta
 
 # 設定頁面配置
 st.set_page_config(
@@ -68,8 +68,8 @@ def load_and_process_data(strategy_stocks, benchmark_stock, start_date, end_date
 with st.sidebar:
     st.header("選項設定")
     # 日期選擇器
-    start_date = st.date_input('選擇開始日期', value=date(2024, 1, 1))
-    end_date = st.date_input('選擇結束日期', value=date.today())
+    start_date = st.date_input('選擇開始日期', value=date(2023, 1, 1))
+    end_date = st.date_input('選擇結束日期', value=date(2024, 10, 23))
     if start_date > end_date:
         st.error('開始日期不能晚於結束日期')
 
@@ -79,7 +79,7 @@ with st.sidebar:
     strategy_stocks = st.multiselect(
         '選擇組合策略的股票（至少選擇一支）',
         stock_options,
-        default=['2330', '2317']
+        default=['2330']
     )
 
     # 讓使用者輸入比較的股票代號
@@ -90,9 +90,10 @@ with st.sidebar:
     use_compound = st.checkbox('使用複利計算機')
 
     if use_compound:
-        initial_capital = st.number_input('初始資金（元）', min_value=0, value=100000)
-        monthly_investment = st.number_input('每月投入（元）', min_value=0, value=10000)
-        target_amount = st.number_input('目標資產（元）', min_value=0, value=1000000)
+        initial_capital = st.number_input('初始資金（元）', min_value=0, value=10000)
+        monthly_investment = st.number_input('每月投入（元）', min_value=0, value=1000)
+        # 移除目標資產的輸入
+        # target_amount = st.number_input('目標資產（元）', min_value=0, value=1000000)
 
 # 主體內容
 if strategy_stocks and benchmark_stock and start_date <= end_date:
@@ -149,33 +150,50 @@ if strategy_stocks and benchmark_stock and start_date <= end_date:
             strategy_total_return = strategy_performance.iloc[-1] / 100  # 百分比轉換為小數
             strategy_annual_return = (1 + strategy_total_return) ** (1 / years) - 1
 
-            # 計算基準股票的年化報酬率
-            benchmark_total_return = benchmark_performance.iloc[-1] / 100  # 百分比轉換為小數
-            benchmark_annual_return = (1 + benchmark_total_return) ** (1 / years) - 1
+            # 計算月收益率和總月數
+            r_monthly = strategy_annual_return / 12
+            n_months = years * 12
 
-            # 計算策略組合的最終資產
-            n = years * 1  # 每年複利一次
-            rs = strategy_annual_return
-            rb = benchmark_annual_return
-            if rs != 0:
-                strategy_future_value = initial_capital * (1 + rs) ** n + monthly_investment * 12 * (((1 + rs) ** n - 1) / (rs / 12))
-            else:
-                strategy_future_value = initial_capital + monthly_investment * 12 * n
+            # 建立時間軸
+            dates = [start_date + timedelta(days=30*i) for i in range(int(n_months)+1)]
+            if dates[-1] > end_date:
+                dates[-1] = end_date
 
-            # 計算基準股票的最終資產
-            if rb != 0:
-                benchmark_future_value = initial_capital * (1 + rb) ** n + monthly_investment * 12 * (((1 + rb) ** n - 1) / (rb / 12))
-            else:
-                benchmark_future_value = initial_capital + monthly_investment * 12 * n
+            # 計算每個月的資產增長
+            total_capital = []
+            for i in range(len(dates)):
+                # 初始資金增長
+                FV_initial = initial_capital * (1 + r_monthly) ** i
+                # 每月投入增長
+                if r_monthly != 0:
+                    FV_monthly = monthly_investment * (( (1 + r_monthly) ** i - 1) / r_monthly)
+                else:
+                    FV_monthly = monthly_investment * i
+                total = FV_initial + FV_monthly
+                total_capital.append(total)
 
-            st.subheader("複利計算結果比較")
-            st.write(f"**策略組合：**")
+            # 繪製資產增長圖表
+            fig2 = go.Figure()
+            fig2.add_trace(go.Scatter(
+                x=dates, y=total_capital,
+                mode='lines+markers', name='總資產'
+            ))
+            fig2.update_layout(
+                title='資產增長圖',
+                xaxis_title='日期',
+                yaxis_title='資產總額（元）',
+                hovermode='x unified',
+                legend=dict(x=0, y=1)
+            )
+            st.plotly_chart(fig2, use_container_width=True)
+
+            # 顯示最終結果
+            final_capital = total_capital[-1]
+
+            st.subheader("複利計算結果")
+            st.write(f"策略投資累積漲幅：約 {strategy_total_return * 100:.2f}%")
             st.write(f"年化報酬率：約 {strategy_annual_return * 100:.2f}%")
-            st.write(f"投資 {years:.2f} 年後的預期資產：約 {strategy_future_value:,.0f} 元")
-
-            st.write(f"**基準股票（{benchmark_stock}）：**")
-            st.write(f"年化報酬率：約 {benchmark_annual_return * 100:.2f}%")
-            st.write(f"投資 {years:.2f} 年後的預期資產：約 {benchmark_future_value:,.0f} 元")
+            st.write(f"投資 {years:.2f} 年後的預期資產：約 {final_capital:,.0f} 元")
 
     else:
         st.error("資料加載或處理失敗，請檢查您的股票代碼。")
