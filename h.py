@@ -28,8 +28,9 @@ def load_stock_data(stock_list, start_date, end_date):
             if df.empty:
                 st.warning(f"無法下載股票代碼為 {stock} 的資料，數據為空。")
             else:
-                df = df[['Close']].dropna()
-                df.rename(columns={'Close': stock}, inplace=True)
+                # 使用調整後的收盤價
+                df = df[['Adj Close']].dropna()
+                df.rename(columns={'Adj Close': stock}, inplace=True)
                 data_frames.append(df)
                 st.write(f"成功下載 {stock} 的資料，共有 {len(df)} 條記錄。")
         except Exception as e:
@@ -69,7 +70,7 @@ def load_and_process_data(strategy_stocks, benchmark_stock, start_date, end_date
 with st.sidebar:
     st.header("選項設定")
     # 日期選擇器
-    start_date = st.date_input('選擇開始日期', value=date(2010, 1, 1))
+    start_date = st.date_input('選擇開始日期', value=date(2023, 1, 1))
     end_date = st.date_input('選擇結束日期', value=date.today())
     if start_date > end_date:
         st.error('開始日期不能晚於結束日期')
